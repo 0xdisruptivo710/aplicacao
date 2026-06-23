@@ -10,6 +10,31 @@
   // >>> TROQUE pelo link real do grupo (WhatsApp) <<<
   var GROUP_URL = 'https://chat.whatsapp.com/SEU_LINK_DO_GRUPO';
 
+  // Capa por variante (A/B). A = recuperar pacientes parados; B = foco em IA.
+  var FILTER = '→ Exclusivo para clínicas que faturam R$30k+/mês e querem parar de perder paciente e começar a escalar.';
+  var COVERS = {
+    A: {
+      h1: '<span class="emoji">📲</span> Dono de clínica de estética: <b>recupere os pacientes parados</b> no seu WhatsApp',
+      bullets: [
+        ['✅', 'Reative quem já te procurou e sumiu'],
+        ['🤖', 'IA responde cada paciente em 1s'],
+        ['📅', 'Agenda cheia, sem trabalho manual'],
+        ['🏆', '+500 negócios · 2M+ leads atendidos']
+      ],
+      filter: FILTER
+    },
+    B: {
+      h1: '<span class="emoji">🤖</span> Dono de clínica de estética: <b>uma IA vendendo no seu WhatsApp 24h</b>',
+      bullets: [
+        ['🤖', 'IA atende e agenda 24h por dia'],
+        ['⚡', 'Responde cada paciente em 1 segundo'],
+        ['📅', 'Agenda cheia, sem trabalho manual'],
+        ['🏆', '+500 negócios · 2M+ leads atendidos']
+      ],
+      filter: FILTER
+    }
+  };
+
   // ---------------------------------------------------------------- helpers
   function notEmpty(msg) { return function (v) { return v.trim().length >= 2 ? '' : msg; }; }
   function validPhone(v) { return v.replace(/\D/g, '').length >= 10 ? '' : 'Digite um WhatsApp válido com DDD.'; }
@@ -111,20 +136,19 @@
 
   // ---------------------------------------------------------------- skeleton
   function build() {
+    var cover = COVERS[VARIANT];
+    var coverBullets = cover.bullets.map(function (b) {
+      return '<li><span class="emoji">' + b[0] + '</span>' + b[1] + '</li>';
+    }).join('');
     root.innerHTML =
       '<div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>' +
       '<div class="body">' +
         // Capa
         '<section class="screen active" id="screen-intro">' +
           '<div class="logo"><img src="/assets/logo.png" alt="Aios CRM"><span>Aios CRM</span></div>' +
-          '<h1><span class="emoji">📲</span> Donos de PME: <b>venda 24h no WhatsApp</b> sem contratar</h1>' +
-          '<ul class="bullets">' +
-            '<li><span class="emoji">✅</span>+40% em vendas, zero esforço</li>' +
-            '<li><span class="emoji">🤖</span>IA responde cada lead em 1s</li>' +
-            '<li><span class="emoji">📊</span>Kanban move o lead sozinho</li>' +
-            '<li><span class="emoji">🏆</span>+500 empresas · 2M+ leads</li>' +
-          '</ul>' +
-          '<p class="filter">→ Exclusivo para PMEs que faturam R$30k+/mês e querem parar de perder lead e começar a escalar.</p>' +
+          '<h1>' + cover.h1 + '</h1>' +
+          '<ul class="bullets">' + coverBullets + '</ul>' +
+          '<p class="filter">' + cover.filter + '</p>' +
           '<div class="spacer"></div>' +
           '<button class="cta cta-cover" id="startBtn">Quero agendar minha demo <span class="chk">→</span></button>' +
           '<p class="micro">Resposta em até 24h · Sem compromisso</p>' +
