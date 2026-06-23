@@ -1,0 +1,150 @@
+:root{
+  /* Cor da marca Aios (troque --brand por #F2740C p/ laranja) */
+  --brand: #6A1B9A;
+  --brand-gradient: linear-gradient(135deg, #D6196E 0%, #6A1B9A 50%, #3B5BDB 100%);
+  --brand-soft: rgba(106,27,154,.10);
+  --ink: #1d2433;
+  --ink-soft: #3f4658;
+  --muted: #8a90a0;
+  --line: #e6e8ee;
+  --badge-bg: #f1f2f6;
+  --danger: #dc2626;
+  --ok: #16a34a;
+}
+
+*{ box-sizing: border-box; margin: 0; padding: 0; }
+html{ -webkit-text-size-adjust: 100%; }
+
+body{
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #fff;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+}
+
+.app{ width: 100%; max-width: 440px; min-height: 100dvh; display: flex; flex-direction: column; position: relative; }
+
+/* ---------- Barra de progresso ---------- */
+.progress-track{ height: 5px; background: #eef0f4; width: 100%; opacity: 0; transition: opacity .2s ease; }
+.progress-track.show{ opacity: 1; }
+.progress-fill{ height: 100%; width: 0%; background: var(--brand-gradient); transition: width .4s cubic-bezier(.16,1,.3,1); }
+
+.body{ flex: 1; display: flex; flex-direction: column; padding: 26px 26px 30px; }
+
+.screen{ display: none; flex: 1; flex-direction: column; }
+.screen.active{ display: flex; animation: fade-up .35s cubic-bezier(.16,1,.3,1) both; }
+@keyframes fade-up{ from{ opacity:0; transform: translateY(10px);} to{ opacity:1; transform: translateY(0);} }
+
+/* ---------- Capa ---------- */
+.logo{ display: flex; align-items: center; gap: 9px; margin-bottom: 28px; }
+.logo img{ height: 34px; width: auto; display: block; }
+.logo span{ font-size: 17px; font-weight: 900; letter-spacing: -0.02em; color: var(--ink); }
+
+h1{ font-size: 29px; line-height: 1.18; letter-spacing: -0.02em; font-weight: 400; color: var(--ink); margin-bottom: 22px; }
+h1 b{ font-weight: 900; }
+h1 .emoji{ font-weight: 400; }
+
+.bullets{ list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 24px; }
+.bullets li{ font-size: 16px; font-weight: 700; color: var(--ink-soft); display: flex; align-items: center; gap: 10px; }
+.bullets .emoji{ font-size: 18px; line-height: 1; flex-shrink: 0; }
+
+.filter{ font-size: 14px; font-style: italic; color: var(--muted); line-height: 1.55; margin-bottom: 30px; }
+
+.spacer{ flex: 1; min-height: 12px; }
+
+/* ---------- Pergunta ---------- */
+.step-badge{ display: inline-flex; align-items: center; gap: 9px; margin-bottom: 18px; }
+.step-badge .num{ width: 30px; height: 30px; border-radius: 9px; background: var(--brand-soft); color: var(--brand); font-weight: 900; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.step-badge .dot{ width: 6px; height: 6px; border-radius: 50%; background: #d4d7e0; }
+
+.question{ display: block; font-size: 25px; line-height: 1.25; font-weight: 900; letter-spacing: -0.02em; color: var(--ink); margin-bottom: 10px; }
+.help{ font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 6px; }
+
+/* underline input */
+.field{ margin: 22px 0 8px; }
+input.answer{
+  width: 100%; border: none; border-bottom: 2px solid var(--brand); background: transparent;
+  padding: 10px 2px; font-family: inherit; font-size: 18px; font-weight: 700; color: var(--ink);
+  border-radius: 0; outline: none; transition: border-color .2s ease;
+}
+input.answer::placeholder{ color: #b6bac6; font-weight: 400; }
+input.answer.invalid{ border-bottom-color: var(--danger); }
+.error{ min-height: 18px; font-size: 13px; font-weight: 700; color: var(--danger); margin-top: 8px; }
+
+/* opções (card com letra) */
+.choices{ display: flex; flex-direction: column; gap: 11px; margin: 22px 0 8px; }
+.choice{
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  padding: 15px 16px; background: #fff; border: 1.5px solid var(--line); border-radius: 13px;
+  cursor: pointer; font-family: inherit;
+  transition: border-color .15s ease, background .15s ease, transform .1s ease;
+}
+.choice:hover{ border-color: #c9b8d8; }
+.choice:active{ transform: scale(.99); }
+.choice .letter{ width: 30px; height: 30px; border-radius: 8px; background: var(--badge-bg); color: var(--muted); font-weight: 900; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s ease, color .15s ease; }
+.choice .opt-text{ font-size: 15.5px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+.choice.selected{ border-color: var(--brand); background: var(--brand-soft); }
+.choice.selected .letter{ background: var(--brand); color: #fff; }
+
+/* ---------- Botões ---------- */
+.cta{
+  width: 100%; height: 56px; border: none; border-radius: 13px; background: var(--brand-gradient);
+  color: #fff; font-family: inherit; font-size: 16px; font-weight: 900; letter-spacing: -0.01em;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px;
+  box-shadow: 0 12px 24px -12px rgba(106,27,154,.7); transition: transform .12s ease, opacity .2s ease;
+}
+.cta:active{ transform: scale(.985); }
+.cta:disabled{ opacity: .5; cursor: not-allowed; box-shadow: none; }
+.cta .chk{ font-size: 15px; opacity: .95; }
+.cta-cover{ text-transform: uppercase; letter-spacing: 0.04em; font-size: 14.5px; }
+
+.micro{ text-align: center; font-size: 12px; color: #b6bac6; font-weight: 700; margin-top: 13px; }
+
+.back{ background: none; border: none; color: var(--muted); font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; padding: 14px; align-self: center; margin-top: 4px; }
+.back:hover{ color: var(--ink); }
+.back[hidden]{ display: none; }
+
+/* ---------- Calendário ---------- */
+.cal-section{ margin: 20px 0 8px; }
+.cal-label{ font-size: 12px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 11px; }
+
+.dates{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+.date-chip{
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 11px 4px;
+  background: #fff; border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer; font-family: inherit;
+  transition: border-color .15s ease, background .15s ease;
+}
+.date-chip:hover{ border-color: #c9b8d8; }
+.date-chip .dow{ font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); letter-spacing: .03em; }
+.date-chip .day{ font-size: 18px; font-weight: 900; color: var(--ink); line-height: 1.1; }
+.date-chip .mon{ font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+.date-chip.selected{ border-color: var(--brand); background: var(--brand-soft); }
+.date-chip.selected .day{ color: var(--brand); }
+
+.times{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 16px; }
+.time-slot{
+  padding: 12px 4px; text-align: center; background: #fff; border: 1.5px solid var(--line);
+  border-radius: 11px; cursor: pointer; font-family: inherit; font-size: 15px; font-weight: 800; color: var(--ink);
+  transition: border-color .15s ease, background .15s ease;
+}
+.time-slot:hover{ border-color: #c9b8d8; }
+.time-slot.selected{ border-color: var(--brand); background: var(--brand); color: #fff; }
+.time-slot.taken{ opacity: .35; text-decoration: line-through; pointer-events: none; background: #f6f7f9; }
+
+.cal-empty{ font-size: 14px; color: var(--muted); padding: 14px 2px; }
+.cal-loading{ font-size: 14px; color: var(--muted); padding: 14px 2px; display: flex; align-items: center; gap: 8px; }
+.spin{ width: 15px; height: 15px; border: 2px solid var(--line); border-top-color: var(--brand); border-radius: 50%; animation: rot .7s linear infinite; }
+@keyframes rot{ to{ transform: rotate(360deg);} }
+
+/* ---------- Telas finais ---------- */
+.final{ align-items: center; justify-content: center; text-align: center; gap: 6px; }
+.final .badge-circle{ width: 72px; height: 72px; border-radius: 50%; background: var(--brand-gradient); color: #fff; font-size: 34px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: 0 14px 30px -14px rgba(106,27,154,.7); }
+.final h2{ font-size: 24px; font-weight: 900; letter-spacing: -0.02em; }
+.final p{ font-size: 15px; color: var(--muted); line-height: 1.55; max-width: 320px; margin-top: 2px; }
+.final .cta{ margin-top: 26px; max-width: 320px; }
+.final .micro{ margin-top: 14px; }

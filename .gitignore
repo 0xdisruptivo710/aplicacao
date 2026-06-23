@@ -1,0 +1,13 @@
+.vercel
+.gstack/
+
+.env*
+
+# Artefatos do AIDesigner (não fazem parte do código)
+.aidesigner
+
+# Dependências / sistema
+node_modules
+*.log
+.DS_Store
+Thumbs.db
