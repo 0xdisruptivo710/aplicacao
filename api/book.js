@@ -1,6 +1,8 @@
 // POST /api/book  { date:"YYYY-MM-DD", time:"HH:MM", ...lead }
-// Reserva ATÔMICA do horário (SET NX no KV) e encaminha o lead ao n8n.
+// Reserva ATÔMICA do horário (SET NX no KV), encaminha o lead ao n8n
+// e dispara o evento Schedule na Meta (CAPI).
 var N8N = process.env.N8N_WEBHOOK_URL || 'https://aios-n8n-webhook.yspmhc.easypanel.host/webhook/aplicacao';
+var meta = require('../lib/meta.js');
 
 module.exports = async function (req, res) {
   if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'method' }); return; }
@@ -35,6 +37,19 @@ module.exports = async function (req, res) {
       body: JSON.stringify(Object.assign({ status: 'agendado', data: date, horario: time }, body))
     });
   } catch (e) { /* lead reservado; entrega ao n8n pode ser reconciliada */ }
+
+  // 3) Evento Schedule na Meta (CAPI) — dedup pelo mesmo event_id do Pixel
+  try {
+    await meta.sendEvent({
+      event_name: 'Schedule',
+      event_time: meta.nowTs(),
+      event_id: body.event_id || ('sch_' + date + '_' + time),
+      action_source: 'website',
+      event_source_url: body.event_source_url || '',
+      user_data: meta.buildUserData(body, req),
+      custom_data: { content_name: 'Agendamento de demonstração', variante: body.variante || '', data: date, horario: time }
+    });
+  } catch (e) { /* não derruba o agendamento se a Meta falhar */ }
 
   res.status(200).json({ ok: true });
 };

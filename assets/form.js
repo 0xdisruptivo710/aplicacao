@@ -35,6 +35,46 @@
     }
   };
 
+  // ---------------------------------------------------------------- Meta Pixel + CAPI (cliente)
+  var META_PIXEL_ID = '2039202806998855';
+  var sent = {}; // evita disparar o mesmo evento 2x na sessão
+
+  function loadPixel() {
+    if (window.fbq) return;
+    !function (f, b, e, v, n, t, s) {
+      if (f.fbq) return; n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
+      if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0'; n.queue = [];
+      t = b.createElement(e); t.async = !0; t.src = v; s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
+    }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+    window.fbq('init', META_PIXEL_ID);
+    window.fbq('track', 'PageView');
+  }
+
+  function getCookie(name) {
+    var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+  function getFbp() { return getCookie('_fbp'); }
+  function getFbc() {
+    var c = getCookie('_fbc'); if (c) return c;
+    var id = new URLSearchParams(window.location.search).get('fbclid');
+    return id ? ('fb.1.' + (window.AIOS_NOW || nowMs()) + '.' + id) : '';
+  }
+  function nowMs() { return new Date().getTime(); }
+  function genId() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    return 'e' + nowMs() + Math.random().toString(16).slice(2);
+  }
+  function metaBase() {
+    return { fbp: getFbp(), fbc: getFbc(), event_source_url: window.location.href, client_user_agent: navigator.userAgent };
+  }
+  // dispara no Pixel (browser). custom=true -> trackCustom
+  function pixel(name, params, eventId, custom) {
+    if (!window.fbq) return;
+    var opts = eventId ? { eventID: eventId } : undefined;
+    window.fbq(custom ? 'trackCustom' : 'track', name, params || {}, opts);
+  }
+
   // ---------------------------------------------------------------- helpers
   function notEmpty(msg) { return function (v) { return v.trim().length >= 2 ? '' : msg; }; }
   function validPhone(v) { return v.replace(/\D/g, '').length >= 10 ? '' : 'Digite um WhatsApp válido com DDD.'; }
@@ -213,7 +253,11 @@
   function setProgress(frac) { pTrack.classList.add('show'); pFill.style.width = Math.min(frac, 1) * 100 + '%'; }
 
   // ---------------------------------------------------------------- fluxo
-  function start() { answers = {}; history = []; current = 'nome'; show(elFlow); renderStep(); }
+  function start() {
+    answers = {}; history = []; current = 'nome';
+    if (!sent.start) { sent.start = true; pixel('IniciouFormulario', { variante: VARIANT }, null, true); }
+    show(elFlow); renderStep();
+  }
 
   function maskPhone(el) {
     el.addEventListener('input', function (e) {
@@ -304,8 +348,10 @@
     };
     document.getElementById('disqMsg').textContent = msgs[reason] || msgs.faturamento;
 
-    // captura o lead desqualificado (não bloqueia a UI)
-    post('/api/lead', Object.assign({ status: 'desqualificado', motivo: DISQ_REASON[reason] || reason }, leadData()));
+    // captura o lead desqualificado (não bloqueia a UI) + evento custom na Meta (dedup)
+    var disqId = genId();
+    pixel('Desqualificado', { motivo: DISQ_REASON[reason] || reason, variante: VARIANT }, disqId, true);
+    post('/api/lead', Object.assign({ status: 'desqualificado', motivo: DISQ_REASON[reason] || reason, event_id: disqId }, leadData()));
 
     show(elDisq);
     // redireciona pro grupo após alguns segundos
@@ -319,6 +365,13 @@
     document.getElementById('schedNum').textContent = history.length + 1;
     show(elSchedule);
     renderDates();
+    // Meta: Lead qualificado (chegou no agendamento) — Pixel + CAPI, dedup pelo event_id
+    if (!sent.lead) {
+      sent.lead = true;
+      var id = genId();
+      pixel('Lead', { content_name: 'lead_qualificado', variante: VARIANT }, id);
+      post('/api/event', Object.assign({ event_name: 'Lead', event_id: id, custom_data: { variante: VARIANT } }, leadData()));
+    }
   }
 
   // gera os próximos N dias úteis (seg-sex) no fuso de São Paulo
@@ -416,9 +469,12 @@
     btn.disabled = true;
     btn.innerHTML = 'Reservando… <span class="chk"></span>';
 
-    post('/api/book', Object.assign({ date: selectedDate, time: selectedTime }, leadData()))
+    var schedId = genId(); // mesmo id no Pixel e na CAPI -> dedup
+    post('/api/book', Object.assign({ date: selectedDate, time: selectedTime, event_id: schedId }, leadData()))
       .then(function (r) {
         if (r && r.ok) {
+          // Meta: Schedule (agendamento realizado) — Pixel; CAPI já disparou no /api/book
+          pixel('Schedule', { content_name: 'agendamento_demo', variante: VARIANT }, schedId);
           setProgress(1);
           var msg = document.getElementById('successMsg');
           msg.textContent = 'Sua reunião está reservada para ' + prettyDate(selectedDate) + ' às ' + selectedTime +
@@ -459,7 +515,7 @@
       base_local: answers.base_local || '',
       base_quantidade: answers.base_qtd || '',
       orcamento: answers.orcamento || ''
-    }, context());
+    }, context(), metaBase());
   }
 
   function post(url, data) {
@@ -468,7 +524,12 @@
   }
 
   // ---------------------------------------------------------------- init
-  function init() { root = document.getElementById('app'); build(); }
+  function init() {
+    root = document.getElementById('app');
+    build();
+    loadPixel();                                   // PageView automático
+    pixel('ViewContent', { content_name: 'capa_' + VARIANT, variante: VARIANT });
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
