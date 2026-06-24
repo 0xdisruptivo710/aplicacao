@@ -52,6 +52,20 @@ module.exports = async function (req, res) {
     });
   } catch (e) { /* não derruba o agendamento se a Meta falhar */ }
 
+  // 4) Evento Purchase na Meta — espelha o agendamento na família "Compra"
+  //    para poder otimizar em campanhas de VENDAS (dedup pelo Pixel via 'pur_' + event_id).
+  try {
+    await meta.sendEvent({
+      event_name: 'Purchase',
+      event_time: meta.nowTs(),
+      event_id: 'pur_' + (body.event_id || (date + '_' + time)),
+      action_source: 'website',
+      event_source_url: body.event_source_url || '',
+      user_data: meta.buildUserData(body, req),
+      custom_data: { currency: 'BRL', value: Number(process.env.META_BOOKING_VALUE || 1), content_name: 'Agendamento de demonstração', variante: body.variante || '', data: date, horario: time }
+    });
+  } catch (e) { /* silencioso */ }
+
   res.status(200).json({ ok: true, meta_received: metaResult && metaResult.body && metaResult.body.events_received });
 };
 

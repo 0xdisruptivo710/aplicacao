@@ -475,6 +475,8 @@
         if (r && r.ok) {
           // Meta: Schedule (agendamento realizado) — Pixel; CAPI já disparou no /api/book
           pixel('Schedule', { content_name: 'agendamento_demo', variante: VARIANT }, schedId);
+          // Meta: Purchase (espelho p/ campanhas de Vendas) — dedup com o servidor via 'pur_' + schedId
+          pixel('Purchase', { value: 1, currency: 'BRL', content_name: 'agendamento_demo', variante: VARIANT }, 'pur_' + schedId);
           setProgress(1);
           var msg = document.getElementById('successMsg');
           msg.textContent = 'Sua reunião está reservada para ' + prettyDate(selectedDate) + ' às ' + selectedTime +
