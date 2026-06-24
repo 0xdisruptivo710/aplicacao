@@ -39,8 +39,9 @@ module.exports = async function (req, res) {
   } catch (e) { /* lead reservado; entrega ao n8n pode ser reconciliada */ }
 
   // 3) Evento Schedule na Meta (CAPI) — dedup pelo mesmo event_id do Pixel
+  var metaResult = null;
   try {
-    await meta.sendEvent({
+    metaResult = await meta.sendEvent({
       event_name: 'Schedule',
       event_time: meta.nowTs(),
       event_id: body.event_id || ('sch_' + date + '_' + time),
@@ -51,7 +52,7 @@ module.exports = async function (req, res) {
     });
   } catch (e) { /* não derruba o agendamento se a Meta falhar */ }
 
-  res.status(200).json({ ok: true });
+  res.status(200).json({ ok: true, meta_received: metaResult && metaResult.body && metaResult.body.events_received });
 };
 
 async function kv(cmd) {
