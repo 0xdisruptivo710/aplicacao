@@ -8,7 +8,7 @@
   var VARIANT = (window.AIOS_VARIANT === 'B') ? 'B' : 'A';
 
   // >>> TROQUE pelo link real do grupo (WhatsApp) <<<
-  var GROUP_URL = 'https://chat.whatsapp.com/SEU_LINK_DO_GRUPO';
+  var GROUP_URL = 'https://chat.whatsapp.com/LmIxlpVEKia2LTLseJeF95';
 
   // Capa por variante (A/B). A = recuperar pacientes parados; B = foco em IA.
   var FILTER = '→ Exclusivo para clínicas que faturam R$30k+/mês e querem parar de perder paciente e começar a escalar.';
