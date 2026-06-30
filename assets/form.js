@@ -10,6 +10,13 @@
   // >>> TROQUE pelo link real do grupo (WhatsApp) <<<
   var GROUP_URL = 'https://chat.whatsapp.com/LmIxlpVEKia2LTLseJeF95';
 
+  // Número direto p/ "Tentar encaixe via WhatsApp" quando a agenda está cheia.
+  var FIT_WHATSAPP_URL = 'https://wa.me/5515991286797';
+
+  // Escassez da agenda: libera só estes nºs de dias/horários; o resto fica "Ocupado".
+  var FREE_DAYS = 3;
+  var FREE_TIMES = 3;
+
   // Capa por variante (A/B). A = recuperar pacientes parados; B = foco em IA.
   var FILTER = '→ Exclusivo para clínicas que faturam R$30k+/mês e querem parar de perder paciente e começar a escalar.';
   var COVERS = {
@@ -82,6 +89,24 @@
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
   function firstInvest() { return VARIANT === 'B' ? 'experiencia' : 'investe'; }
+
+  // hash determinístico (FNV-1a 32 bits) p/ escolher as vagas "livres" de forma estável
+  function hashStr(s) {
+    var h = 2166136261, i;
+    for (i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0; // h *= 16777619
+    }
+    return h >>> 0;
+  }
+  // libera exatamente n itens (os de menor hash) -> mapa { chave: true } dos livres
+  function pickFree(items, n, keyFn, salt) {
+    var scored = items.map(function (it) { var k = keyFn(it); return { k: k, s: hashStr(salt + '|' + k) }; });
+    scored.sort(function (a, b) { return a.s - b.s; });
+    var free = {};
+    scored.slice(0, n).forEach(function (x) { free[x.k] = true; });
+    return free;
+  }
 
   // ---------------------------------------------------------------- steps
   var STEPS = {
@@ -207,6 +232,10 @@
           '<p class="help">Reuniões de 30 min · seg a sex · horário de Brasília.</p>' +
           '<div class="cal-section"><div class="cal-label">Escolha o dia</div><div class="dates" id="dates"></div></div>' +
           '<div class="cal-section"><div class="cal-label">Escolha o horário</div><div id="timesWrap"><p class="cal-empty">Selecione um dia acima.</p></div></div>' +
+          '<p class="wa-hint">Agenda lotada? Garanta um encaixe direto com a gente:</p>' +
+          '<a class="cta cta-wa" id="fitWa" href="' + FIT_WHATSAPP_URL + '" target="_blank" rel="noopener">' +
+            '<svg class="wa-ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>' +
+            'Tentar encaixe via WhatsApp</a>' +
           '<div class="spacer"></div>' +
           '<button class="cta" id="confirmBtn" type="button" disabled>Confirmar agendamento <span class="chk">✓</span></button>' +
           '<button class="back" id="schedBack" type="button">← Voltar</button>' +
@@ -241,6 +270,10 @@
     document.getElementById('schedBack').addEventListener('click', function () { show(elFlow); renderStep(); });
     document.getElementById('confirmBtn').addEventListener('click', confirmBooking);
     document.getElementById('groupBtn').addEventListener('click', function () { window.location.href = GROUP_URL; });
+    document.getElementById('fitWa').addEventListener('click', function () {
+      this.href = fitWhatsAppHref(); // atualiza msg pré-pronta antes de abrir o WhatsApp
+      pixel('EncaixeWhatsApp', { variante: VARIANT }, null, true);
+    });
   }
 
   function show(el) {
@@ -398,13 +431,23 @@
 
   function renderDates() {
     var days = upcomingDays(10);
+    // libera só FREE_DAYS dias; o resto aparece "Ocupado" (escassez)
+    var freeSet = pickFree(days, FREE_DAYS, function (d) { return d.iso; }, 'dia');
     var wrap = document.getElementById('dates');
     wrap.innerHTML = '';
     days.forEach(function (d) {
+      var free = !!freeSet[d.iso];
       var b = document.createElement('button');
-      b.type = 'button'; b.className = 'date-chip'; b.setAttribute('data-iso', d.iso);
-      b.innerHTML = '<span class="dow">' + d.dow + '</span><span class="day">' + d.day + '</span><span class="mon">' + d.mon + '</span>';
-      b.addEventListener('click', function () { selectDate(d.iso, b); });
+      b.type = 'button';
+      b.className = 'date-chip' + (free ? '' : ' taken');
+      b.setAttribute('data-iso', d.iso);
+      b.innerHTML = '<span class="dow">' + d.dow + '</span><span class="day">' + d.day + '</span>' +
+        (free ? '<span class="mon">' + d.mon + '</span>' : '<span class="tag">Ocupado</span>');
+      if (free) {
+        b.addEventListener('click', function () { selectDate(d.iso, b); });
+      } else {
+        b.disabled = true;
+      }
       wrap.appendChild(b);
     });
   }
@@ -439,17 +482,25 @@
     var todayIso = nowSP.year + '-' + nowSP.month + '-' + nowSP.day;
     var nowMin = parseInt(nowSP.hour, 10) * 60 + 0;
 
+    // horários que de fato dá pra reservar (não passou e não está booked no KV)
+    var bookable = slots.filter(function (t) {
+      if (iso === todayIso && toMin(t) <= nowMin + 30) return false;
+      return booked.indexOf(t) === -1;
+    });
+    // libera só FREE_TIMES horários; o resto fica "Ocupado" (escassez), estável por dia
+    var freeSet = pickFree(bookable, FREE_TIMES, function (t) { return t; }, iso);
+
     var html = '<div class="times">';
     var available = 0;
     slots.forEach(function (t) {
-      var isTaken = booked.indexOf(t) !== -1;
       var past = (iso === todayIso) && (toMin(t) <= nowMin + 30);
       if (past) return;
-      html += '<button type="button" class="time-slot' + (isTaken ? ' taken' : '') + '" data-t="' + t + '"' + (isTaken ? ' disabled' : '') + '>' + t + '</button>';
-      if (!isTaken) available++;
+      var free = !!freeSet[t];
+      html += '<button type="button" class="time-slot' + (free ? '' : ' taken') + '" data-t="' + t + '"' + (free ? '' : ' disabled') + '>' + t + '</button>';
+      if (free) available++;
     });
     html += '</div>';
-    if (available === 0) html = '<p class="cal-empty">Sem horários livres neste dia. Escolha outra data.</p>';
+    if (available === 0) html = '<p class="cal-empty">Sem horários livres neste dia. Tente o encaixe pelo WhatsApp abaixo.</p>';
     wrap.innerHTML = html;
 
     Array.prototype.forEach.call(wrap.querySelectorAll('.time-slot:not(.taken)'), function (b) {
@@ -501,6 +552,15 @@
   function prettyDate(iso) {
     var p = iso.split('-');
     return p[2] + '/' + p[1] + '/' + p[0];
+  }
+
+  // monta o link do WhatsApp de encaixe com mensagem pronta (nome + dia/horário desejado)
+  function fitWhatsAppHref() {
+    var nome = (answers.nome || '').trim();
+    var msg = 'Olá! Tentei agendar a demo do Aios CRM' + (nome ? (' — aqui é ' + nome) : '') +
+      ', mas os horários estão ocupados. Consegue um encaixe pra mim?';
+    if (selectedDate) msg += ' (de preferência ' + prettyDate(selectedDate) + (selectedTime ? ' às ' + selectedTime : '') + ')';
+    return FIT_WHATSAPP_URL + '?text=' + encodeURIComponent(msg);
   }
 
   // ---------------------------------------------------------------- payload
