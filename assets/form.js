@@ -14,8 +14,9 @@
   var FIT_WHATSAPP_URL = 'https://wa.me/5515991286797';
 
   // Escassez da agenda: libera só estes nºs de dias/horários; o resto fica "Ocupado".
-  var FREE_DAYS = 3;
-  var FREE_TIMES = 3;
+  // Dias liberados = hoje + o próximo dia útil. 2 dias × 2 horários = 4 vagas no total.
+  var FREE_DAYS = 2;
+  var FREE_TIMES = 2;
 
   // Capa por variante (A/B). A = recuperar pacientes parados; B = foco em IA.
   var FILTER = '→ Exclusivo para clínicas que faturam R$30k+/mês e querem parar de perder paciente e começar a escalar.';
@@ -429,10 +430,24 @@
     return out;
   }
 
+  // dias liberados: hoje + o próximo dia útil. Se hoje já não cabe mais nenhum
+  // horário (passou do último slot), começa a contar a partir de amanhã.
+  function freeDays(days) {
+    var nowSP = spParts(new Date());
+    var todayIso = nowSP.year + '-' + nowSP.month + '-' + nowSP.day;
+    var nowMin = parseInt(nowSP.hour, 10) * 60;
+    var slots = allSlots();
+    var lastSlot = slots[slots.length - 1];
+    return days.filter(function (d) {
+      return !(d.iso === todayIso && toMin(lastSlot) <= nowMin + 30);
+    }).slice(0, FREE_DAYS);
+  }
+
   function renderDates() {
     var days = upcomingDays(10);
-    // libera só FREE_DAYS dias; o resto aparece "Ocupado" (escassez)
-    var freeSet = pickFree(days, FREE_DAYS, function (d) { return d.iso; }, 'dia');
+    // libera só hoje e o dia seguinte; o resto aparece "Ocupado" (escassez)
+    var freeSet = {};
+    freeDays(days).forEach(function (d) { freeSet[d.iso] = true; });
     var wrap = document.getElementById('dates');
     wrap.innerHTML = '';
     days.forEach(function (d) {
