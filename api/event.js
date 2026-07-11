@@ -2,7 +2,7 @@
 // Dispara eventos CAPI (server-side) para marcos do funil. Não toca no n8n.
 var meta = require('../lib/meta.js');
 
-var ALLOWED = { Lead: 1, ViewContent: 1, IniciouFormulario: 1, TesteIntegracao: 1 };
+var ALLOWED = { Lead: 1, LeadCarros: 1, ViewContent: 1, IniciouFormulario: 1, TesteIntegracao: 1 };
 
 module.exports = async function (req, res) {
   if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'method' }); return; }

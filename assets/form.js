@@ -442,6 +442,14 @@
       var id = genId();
       pixel('Lead', { content_name: 'lead_qualificado', variante: VARIANT }, id);
       post('/api/event', Object.assign({ event_name: 'Lead', event_id: id, custom_data: { variante: VARIANT } }, leadData()));
+
+      // /carros dispara também um evento próprio, pra separar o dado do nicho
+      // sem tirar o lead da visão global (o padrão acima continua valendo).
+      if (VARIANT === 'C') {
+        var idc = 'lc_' + id;
+        pixel('LeadCarros', { content_name: 'lead_qualificado_carros', variante: VARIANT }, idc, true);
+        post('/api/event', Object.assign({ event_name: 'LeadCarros', event_id: idc, custom_data: { variante: VARIANT } }, leadData()));
+      }
     }
   }
 
@@ -580,6 +588,11 @@
           pixel('Schedule', { content_name: 'agendamento_demo', variante: VARIANT }, schedId);
           // Meta: Purchase (espelho p/ campanhas de Vendas) — dedup com o servidor via 'pur_' + schedId
           pixel('Purchase', { value: 1, currency: 'BRL', content_name: 'agendamento_demo', variante: VARIANT }, 'pur_' + schedId);
+          // Eventos exclusivos do funil de carros — a CAPI dispara os pares no /api/book
+          if (VARIANT === 'C') {
+            pixel('AgendamentoCarros', { content_name: 'agendamento_demo_carros', variante: VARIANT }, 'agc_' + schedId, true);
+            pixel('PurchaseCarros', { value: 1, currency: 'BRL', content_name: 'agendamento_demo_carros', variante: VARIANT }, 'purc_' + schedId, true);
+          }
           setProgress(1);
           var msg = document.getElementById('successMsg');
           msg.textContent = 'Sua reunião está reservada para ' + prettyDate(selectedDate) + ' às ' + selectedTime +

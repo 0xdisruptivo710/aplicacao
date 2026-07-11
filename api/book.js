@@ -66,6 +66,37 @@ module.exports = async function (req, res) {
     });
   } catch (e) { /* silencioso */ }
 
+  // 5) Variante C (/carros): espelha o agendamento em eventos próprios do nicho,
+  //    para separar o dado de lojas de carros do de estética no Gerenciador de
+  //    Eventos. Dedup com o Pixel via 'agc_' / 'purc_' + event_id.
+  if (body.variante === 'C') {
+    var baseId = body.event_id || (date + '_' + time);
+    var udC = meta.buildUserData(body, req);
+    var customC = { content_name: 'Agendamento de demonstração (carros)', variante: 'C', data: date, horario: time };
+    try {
+      await meta.sendEvent({
+        event_name: 'AgendamentoCarros',
+        event_time: meta.nowTs(),
+        event_id: 'agc_' + baseId,
+        action_source: 'website',
+        event_source_url: body.event_source_url || '',
+        user_data: udC,
+        custom_data: customC
+      });
+    } catch (e) { /* silencioso */ }
+    try {
+      await meta.sendEvent({
+        event_name: 'PurchaseCarros',
+        event_time: meta.nowTs(),
+        event_id: 'purc_' + baseId,
+        action_source: 'website',
+        event_source_url: body.event_source_url || '',
+        user_data: udC,
+        custom_data: Object.assign({ currency: 'BRL', value: Number(process.env.META_BOOKING_VALUE || 1) }, customC)
+      });
+    } catch (e) { /* silencioso */ }
+  }
+
   res.status(200).json({ ok: true, meta_received: metaResult && metaResult.body && metaResult.body.events_received });
 };
 
