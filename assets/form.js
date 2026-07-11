@@ -1,11 +1,12 @@
 /* =========================================================================
    Aios CRM — Formulário de aplicação (estilo Chronos)
-   Variantes A/B, ramificações, desqualificação e calendário nativo.
+   Variantes A/B (clínicas de estética) e C (lojas de carros),
+   ramificações, desqualificação silenciosa e calendário nativo.
    ========================================================================= */
 (function () {
   'use strict';
 
-  var VARIANT = (window.AIOS_VARIANT === 'B') ? 'B' : 'A';
+  var VARIANT = (window.AIOS_VARIANT === 'B' || window.AIOS_VARIANT === 'C') ? window.AIOS_VARIANT : 'A';
 
   // >>> TROQUE pelo link real do grupo (WhatsApp) <<<
   var GROUP_URL = 'https://chat.whatsapp.com/LmIxlpVEKia2LTLseJeF95';
@@ -18,8 +19,10 @@
   var FREE_DAYS = 2;
   var FREE_TIMES = 2;
 
-  // Capa por variante (A/B). A = recuperar pacientes parados; B = foco em IA.
+  // Capa por variante. A/B = clínicas de estética (A: recuperar pacientes parados,
+  // B: foco em IA). C = lojas de carros.
   var FILTER = '→ Exclusivo para clínicas que faturam R$30k+/mês e querem parar de perder paciente e começar a escalar.';
+  var FILTER_CARROS = '→ Exclusivo para lojas com estoque próprio e time de vendas que cansaram de perder cliente no WhatsApp.';
   var COVERS = {
     A: {
       h1: '<span class="emoji">📲</span> Dono de clínica de estética: <b>recupere os pacientes parados</b> no seu WhatsApp',
@@ -40,6 +43,16 @@
         ['🏆', '+500 negócios · 2M+ leads atendidos']
       ],
       filter: FILTER
+    },
+    C: {
+      h1: '<span class="emoji">🚗</span> Dono de loja de carros: <b>test drives agendados</b> pela IA',
+      bullets: [
+        ['✅', 'Reative quem pediu preço e sumiu'],
+        ['🤖', 'IA responde cada lead em 1s'],
+        ['📅', 'Agenda cheia de test drive'],
+        ['🏆', '+50 negócios · +200k leads gerenciados']
+      ],
+      filter: FILTER_CARROS
     }
   };
 
@@ -89,7 +102,8 @@
   function letter(i) { return String.fromCharCode(65 + i); }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-  function firstInvest() { return VARIANT === 'B' ? 'experiencia' : 'investe'; }
+  // A pergunta de ramificação: investimento (A) ou experiência (B e C).
+  function firstInvest() { return VARIANT === 'A' ? 'investe' : 'experiencia'; }
 
   // hash determinístico (FNV-1a 32 bits) p/ escolher as vagas "livres" de forma estável
   function hashStr(s) {
@@ -121,42 +135,35 @@
 
     whatsapp: { type: 'tel', inputType: 'tel', autocomplete: 'tel',
       q: 'Qual é o seu WhatsApp?', ph: 'Digite seu telefone...',
-      validate: validPhone, next: function () { return 'faturamento'; } },
+      // /carros não pergunta faturamento: pula direto pra ramificação.
+      validate: validPhone, next: function () { return VARIANT === 'C' ? firstInvest() : 'faturamento'; } },
 
     faturamento: { type: 'choice',
       q: 'Qual o faturamento da sua empresa?',
       options: ['Mais de R$100k por mês', 'De R$50k a R$100k por mês', 'De R$30k a R$50k por mês', 'Até R$30k por mês'],
-      next: function (a) { return a.faturamento === 'Até R$30k por mês' ? 'DISQUALIFY:faturamento' : firstInvest(); } },
+      next: function () { return firstInvest(); } },
 
     /* ---- Variante A: investimento ---- */
     investe: { type: 'choice',
       q: 'Você já investe em WhatsApp API Cloud para prospecção?',
       options: ['Sim, já invisto', 'Não, ainda não'],
-      next: function (a) { return a.investe.indexOf('Sim') === 0 ? 'investe_quanto' : 'base'; } },
+      next: function (a) { return a.investe.indexOf('Sim') === 0 ? 'investe_quanto' : 'base_local'; } },
     investe_quanto: { type: 'choice',
       q: 'Quanto você investe por mês hoje?',
       options: ['Menos de R$1.000', 'R$1.000 a R$5.000', 'R$5.000 a R$15.000', 'Mais de R$15.000'],
-      next: function () { return 'base'; } },
+      next: function () { return 'base_local'; } },
 
     /* ---- Variante B: experiência ---- */
     experiencia: { type: 'choice',
       q: 'Você já teve experiência com automações e prospecção via WhatsApp API?',
       options: ['Sim, já trabalhei com isso', 'Não, nunca usei'],
-      next: function () { return 'base'; } },
+      next: function () { return 'base_local'; } },
 
     /* ---- Base de clientes ---- */
-    base: { type: 'choice',
-      q: 'Você tem sua base de clientes organizada hoje?',
-      options: ['Sim, está organizada', 'Não tenho organizada'],
-      next: function (a) { return a.base.indexOf('Sim') === 0 ? 'base_qtd' : 'base_local'; } },
     base_local: { type: 'choice',
-      q: 'Mas você tem algum lugar onde esses contatos ficam guardados?',
+      q: 'Você tem algum lugar onde os contatos dos seus clientes ficam guardados?',
       help: 'Pode ser planilha, celular, agenda, caderno... qualquer lugar.',
       options: ['Sim, tenho', 'Não tenho'],
-      next: function (a) { return a.base_local.indexOf('Sim') === 0 ? 'base_qtd' : 'DISQUALIFY:base'; } },
-    base_qtd: { type: 'choice',
-      q: 'Quantos clientes você tem hoje, mais ou menos?',
-      options: ['Até 100', 'De 100 a 500', 'De 500 a 2 mil', 'Mais de 2 mil'],
       next: function () { return 'orcamento'; } },
 
     /* ---- Orçamento ---- */
@@ -164,20 +171,32 @@
       q: 'Recomendamos um investimento de no mínimo R$1.000 para montar seu funil de WhatsApp via WhatsApp Business API. Esse valor se alinha ao seu orçamento atual?',
       help: 'Esse é o investimento em mídia/estrutura — não inclui a nossa mão de obra.',
       options: ['Sim, faz sentido pra mim', 'Não se alinha agora'],
-      next: function (a) { return a.orcamento.indexOf('Sim') === 0 ? 'SCHEDULE' : 'DISQUALIFY:orcamento'; } }
+      next: function () { return 'SCHEDULE'; } }
   };
 
   var DISQ_REASON = {
     faturamento: 'Faturamento até R$30k/mês',
-    base: 'Sem base e sem local de armazenamento',
+    base: 'Sem local onde guarda os contatos',
     orcamento: 'Orçamento abaixo de R$1.000'
   };
+
+  // Ninguém é barrado no formulário: todo mundo chega no agendamento.
+  // Estas regras só marcam o lead pro n8n (qualificado / motivo_desqualificacao).
+  var DISQ_RULES = [
+    { reason: 'faturamento', hit: function (a) { return a.faturamento === 'Até R$30k por mês'; } },
+    { reason: 'base',        hit: function (a) { return (a.base_local || '').indexOf('Não') === 0; } },
+    { reason: 'orcamento',   hit: function (a) { return (a.orcamento || '').indexOf('Não') === 0; } }
+  ];
+  function disqReasons() {
+    return DISQ_RULES.filter(function (r) { return r.hit(answers); })
+                     .map(function (r) { return DISQ_REASON[r.reason]; });
+  }
 
   // ---------------------------------------------------------------- state
   var answers = {};
   var history = [];        // pilha de ids visitados (p/ voltar)
   var current = null;
-  var ESTIMATED = 9;       // p/ estimar a barra de progresso
+  var ESTIMATED = (VARIANT === 'C') ? 6 : 7;  // p/ estimar a barra de progresso (C não pergunta faturamento)
 
   // calendário
   var selectedDate = null;
@@ -357,8 +376,9 @@
       return;
     }
 
+    captureDisqualified(); // marca o lead pro n8n; o fluxo segue normalmente
+
     var target = step.next(answers);
-    if (target.indexOf('DISQUALIFY') === 0) { disqualify(target.split(':')[1]); return; }
     if (target === 'SCHEDULE') { goSchedule(); return; }
 
     history.push(current);
@@ -372,7 +392,24 @@
     renderStep();
   }
 
-  // ---------------------------------------------------------------- desqualificação
+  // ---------------------------------------------------------------- desqualificação (silenciosa)
+  // Na primeira resposta que desqualifica, captura o lead no n8n (status parcial)
+  // para não perder quem abandonar o formulário no meio. Uma vez por sessão —
+  // o payload completo, com todos os motivos, vai no /api/book ao agendar.
+  function captureDisqualified() {
+    if (sent.parcial) return;
+    var reasons = disqReasons();
+    if (!reasons.length) return;
+    sent.parcial = true;
+    var motivo = reasons.join(' | ');
+    var id = genId();
+    pixel('Desqualificado', { motivo: motivo, variante: VARIANT }, id, true);
+    post('/api/lead', Object.assign({ status: 'parcial_desqualificado', motivo: motivo, event_id: id }, leadData()));
+  }
+
+  // ---------------------------------------------------------------- tela de corte (DESATIVADA)
+  // Mantida no código caso você queira voltar a barrar lead no formulário:
+  // basta um step retornar 'DISQUALIFY:<motivo>' e chamar disqualify() no goNext().
   function disqualify(reason) {
     setProgress(1);
     var msgs = {
@@ -588,10 +625,10 @@
       investe: answers.investe || '',
       investe_quanto: answers.investe_quanto || '',
       experiencia: answers.experiencia || '',
-      base_organizada: answers.base || '',
       base_local: answers.base_local || '',
-      base_quantidade: answers.base_qtd || '',
-      orcamento: answers.orcamento || ''
+      orcamento: answers.orcamento || '',
+      qualificado: disqReasons().length ? 'nao' : 'sim',
+      motivo_desqualificacao: disqReasons().join(' | ')
     }, context(), metaBase());
   }
 
