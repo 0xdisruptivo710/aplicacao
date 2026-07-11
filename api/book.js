@@ -66,13 +66,13 @@ module.exports = async function (req, res) {
     });
   } catch (e) { /* silencioso */ }
 
-  // 5) Variante C (/carros): espelha o agendamento em eventos próprios do nicho,
-  //    para separar o dado de lojas de carros do de estética no Gerenciador de
-  //    Eventos. Dedup com o Pixel via 'agc_' / 'purc_' + event_id.
-  if (body.variante === 'C') {
+  // 5) Rotas de carros (variantes C e D): espelham o agendamento em eventos
+  //    próprios do nicho, para separar o dado de lojas de carros do de estética
+  //    no Gerenciador de Eventos. Dedup com o Pixel via 'agc_' / 'purc_' + event_id.
+  if (body.variante === 'C' || body.variante === 'D') {
     var baseId = body.event_id || (date + '_' + time);
     var udC = meta.buildUserData(body, req);
-    var customC = { content_name: 'Agendamento de demonstração (carros)', variante: 'C', data: date, horario: time };
+    var customC = { content_name: 'Agendamento de demonstração (carros)', variante: body.variante, data: date, horario: time };
     try {
       await meta.sendEvent({
         event_name: 'AgendamentoCarros',

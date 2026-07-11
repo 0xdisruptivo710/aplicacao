@@ -6,7 +6,10 @@
 (function () {
   'use strict';
 
-  var VARIANT = (window.AIOS_VARIANT === 'B' || window.AIOS_VARIANT === 'C') ? window.AIOS_VARIANT : 'A';
+  // A e B = clínicas de estética. C e D = lojas de carros (mesmo fluxo e tema,
+  // capas diferentes p/ teste de copy).
+  var VARIANT = /^[BCD]$/.test(window.AIOS_VARIANT || '') ? window.AIOS_VARIANT : 'A';
+  function isCarros() { return VARIANT === 'C' || VARIANT === 'D'; }
 
   // >>> TROQUE pelo link real do grupo (WhatsApp) <<<
   var GROUP_URL = 'https://chat.whatsapp.com/LmIxlpVEKia2LTLseJeF95';
@@ -20,7 +23,8 @@
   var FREE_TIMES = 2;
 
   // Capa por variante. A/B = clínicas de estética (A: recuperar pacientes parados,
-  // B: foco em IA). C = lojas de carros.
+  // B: foco em IA). C/D = lojas de carros (C: recuperar cliente + test drive,
+  // D: recuperar lead perdido + organizar no CRM).
   var FILTER = '→ Exclusivo para clínicas que faturam R$30k+/mês e querem parar de perder paciente e começar a escalar.';
   var FILTER_CARROS = '→ Exclusivo para lojas com estoque próprio e time de vendas que cansaram de perder cliente no WhatsApp.';
   var COVERS = {
@@ -45,7 +49,17 @@
       filter: FILTER
     },
     C: {
-      h1: '<span class="emoji">🚗</span> Dono de loja de carros: <b>test drives agendados</b> pela IA',
+      h1: '<span class="emoji">🚗</span> <b>Recupere clientes</b> e marque test drives com nossa IA + CRM',
+      bullets: [
+        ['✅', 'Reative quem pediu preço e sumiu'],
+        ['🤖', 'IA responde cada lead em 1s'],
+        ['📅', 'Agenda cheia de test drive'],
+        ['🏆', '+50 negócios · +200k leads gerenciados']
+      ],
+      filter: FILTER_CARROS
+    },
+    D: {
+      h1: '<span class="emoji">🚗</span> Recupere <b>todos os leads perdidos</b> e organize com nosso CRM',
       bullets: [
         ['✅', 'Reative quem pediu preço e sumiu'],
         ['🤖', 'IA responde cada lead em 1s'],
@@ -135,8 +149,8 @@
 
     whatsapp: { type: 'tel', inputType: 'tel', autocomplete: 'tel',
       q: 'Qual é o seu WhatsApp?', ph: 'Digite seu telefone...',
-      // /carros não pergunta faturamento: pula direto pra ramificação.
-      validate: validPhone, next: function () { return VARIANT === 'C' ? firstInvest() : 'faturamento'; } },
+      // As rotas de carros não perguntam faturamento: pulam pra ramificação.
+      validate: validPhone, next: function () { return isCarros() ? firstInvest() : 'faturamento'; } },
 
     faturamento: { type: 'choice',
       q: 'Qual o faturamento da sua empresa?',
@@ -196,7 +210,7 @@
   var answers = {};
   var history = [];        // pilha de ids visitados (p/ voltar)
   var current = null;
-  var ESTIMATED = (VARIANT === 'C') ? 6 : 7;  // p/ estimar a barra de progresso (C não pergunta faturamento)
+  var ESTIMATED = isCarros() ? 6 : 7;  // p/ estimar a barra de progresso (carros não pergunta faturamento)
 
   // calendário
   var selectedDate = null;
@@ -443,9 +457,9 @@
       pixel('Lead', { content_name: 'lead_qualificado', variante: VARIANT }, id);
       post('/api/event', Object.assign({ event_name: 'Lead', event_id: id, custom_data: { variante: VARIANT } }, leadData()));
 
-      // /carros dispara também um evento próprio, pra separar o dado do nicho
-      // sem tirar o lead da visão global (o padrão acima continua valendo).
-      if (VARIANT === 'C') {
+      // As rotas de carros disparam também um evento próprio, pra separar o dado
+      // do nicho sem tirar o lead da visão global (o padrão acima continua valendo).
+      if (isCarros()) {
         var idc = 'lc_' + id;
         pixel('LeadCarros', { content_name: 'lead_qualificado_carros', variante: VARIANT }, idc, true);
         post('/api/event', Object.assign({ event_name: 'LeadCarros', event_id: idc, custom_data: { variante: VARIANT } }, leadData()));
@@ -589,7 +603,7 @@
           // Meta: Purchase (espelho p/ campanhas de Vendas) — dedup com o servidor via 'pur_' + schedId
           pixel('Purchase', { value: 1, currency: 'BRL', content_name: 'agendamento_demo', variante: VARIANT }, 'pur_' + schedId);
           // Eventos exclusivos do funil de carros — a CAPI dispara os pares no /api/book
-          if (VARIANT === 'C') {
+          if (isCarros()) {
             pixel('AgendamentoCarros', { content_name: 'agendamento_demo_carros', variante: VARIANT }, 'agc_' + schedId, true);
             pixel('PurchaseCarros', { value: 1, currency: 'BRL', content_name: 'agendamento_demo_carros', variante: VARIANT }, 'purc_' + schedId, true);
           }
@@ -641,7 +655,8 @@
       base_local: answers.base_local || '',
       orcamento: answers.orcamento || '',
       qualificado: disqReasons().length ? 'nao' : 'sim',
-      motivo_desqualificacao: disqReasons().join(' | ')
+      motivo_desqualificacao: disqReasons().join(' | '),
+      nicho: isCarros() ? 'carros' : 'estetica'
     }, context(), metaBase());
   }
 
