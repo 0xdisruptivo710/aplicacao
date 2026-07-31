@@ -163,13 +163,15 @@
 
     whatsapp: { type: 'tel', inputType: 'tel', autocomplete: 'tel',
       q: 'Qual é o seu WhatsApp?', ph: 'Digite seu telefone...',
-      // As rotas de carros não perguntam faturamento: pulam pra ramificação.
-      validate: validPhone, next: function () { return isCarros() ? firstInvest() : 'faturamento'; } },
+      // Carros não pergunta faturamento (pula pra ramificação); no VIP o
+      // faturamento vem por último, depois da base de pacientes.
+      validate: validPhone, next: function () { return isCarros() ? firstInvest() : (isVip() ? 'grupo_vip' : 'faturamento'); } },
 
     faturamento: { type: 'choice',
       q: 'Qual o faturamento da sua empresa?',
       options: ['Mais de R$100k por mês', 'De R$50k a R$100k por mês', 'De R$30k a R$50k por mês', 'Até R$30k por mês'],
-      next: function () { return isVip() ? 'grupo_vip' : firstInvest(); } },
+      // No VIP é a última pergunta: vai direto pro agendamento.
+      next: function () { return isVip() ? 'SCHEDULE' : firstInvest(); } },
 
     /* ---- Variante A: investimento ---- */
     investe: { type: 'choice',
@@ -195,12 +197,8 @@
     base_pacientes: { type: 'choice',
       q: 'Quantos contatos de pacientes você tem hoje?',
       help: 'Some WhatsApp, planilha, sistema ou agenda — é essa base que vira o seu grupo VIP.',
-      options: ['Mais de 3.000 contatos', 'De 1.000 a 3.000 contatos', 'De 300 a 1.000 contatos', 'Menos de 300 contatos'],
-      next: function () { return 'comercial'; } },
-    comercial: { type: 'choice',
-      q: 'Além da estratégia e captação, quer que nosso time cuide também das vendas no grupo?',
-      options: ['Sim, quero o comercial completo', 'Não, minha equipe fecha as vendas', 'Quero entender as duas opções'],
-      next: function () { return 'orcamento'; } },
+      options: ['De 1.000 a 2.000 contatos', 'De 3.000 a 5.000 contatos', 'De 5.000 a 7.000 contatos', 'Mais de 10 mil contatos'],
+      next: function () { return 'faturamento'; } },
 
     /* ---- Base de clientes ---- */
     base_local: { type: 'choice',
@@ -209,11 +207,9 @@
       options: ['Sim, tenho', 'Não tenho'],
       next: function () { return 'orcamento'; } },
 
-    /* ---- Orçamento ---- */
+    /* ---- Orçamento (não usado no VIP) ---- */
     orcamento: { type: 'choice',
-      q: isVip()
-        ? 'Para colocar seu grupo VIP para rodar (estratégia + captação + CRM), recomendamos um investimento de no mínimo R$1.000. Esse valor se alinha ao seu orçamento atual?'
-        : 'Recomendamos um investimento de no mínimo R$1.000 para montar seu funil de WhatsApp via WhatsApp Business API. Esse valor se alinha ao seu orçamento atual?',
+      q: 'Recomendamos um investimento de no mínimo R$1.000 para montar seu funil de WhatsApp via WhatsApp Business API. Esse valor se alinha ao seu orçamento atual?',
       help: 'Esse é o investimento em mídia/estrutura — não inclui a nossa mão de obra.',
       options: ['Sim, faz sentido pra mim', 'Não se alinha agora'],
       next: function () { return 'SCHEDULE'; } }
@@ -222,17 +218,15 @@
   var DISQ_REASON = {
     faturamento: 'Faturamento até R$30k/mês',
     base: 'Sem local onde guarda os contatos',
-    base_pequena: 'Base com menos de 300 contatos',
     orcamento: 'Orçamento abaixo de R$1.000'
   };
 
   // Ninguém é barrado no formulário: todo mundo chega no agendamento.
   // Estas regras só marcam o lead pro n8n (qualificado / motivo_desqualificacao).
   var DISQ_RULES = [
-    { reason: 'faturamento',  hit: function (a) { return a.faturamento === 'Até R$30k por mês'; } },
-    { reason: 'base',         hit: function (a) { return (a.base_local || '').indexOf('Não') === 0; } },
-    { reason: 'base_pequena', hit: function (a) { return a.base_pacientes === 'Menos de 300 contatos'; } },
-    { reason: 'orcamento',    hit: function (a) { return (a.orcamento || '').indexOf('Não') === 0; } }
+    { reason: 'faturamento', hit: function (a) { return a.faturamento === 'Até R$30k por mês'; } },
+    { reason: 'base',        hit: function (a) { return (a.base_local || '').indexOf('Não') === 0; } },
+    { reason: 'orcamento',   hit: function (a) { return (a.orcamento || '').indexOf('Não') === 0; } }
   ];
   function disqReasons() {
     return DISQ_RULES.filter(function (r) { return r.hit(answers); })
@@ -243,7 +237,7 @@
   var answers = {};
   var history = [];        // pilha de ids visitados (p/ voltar)
   var current = null;
-  var ESTIMATED = isCarros() ? 6 : (isVip() ? 8 : 7);  // p/ estimar a barra de progresso (carros não pergunta faturamento; VIP tem 8 passos)
+  var ESTIMATED = isCarros() || isVip() ? 6 : 7;  // p/ estimar a barra de progresso (carros e VIP têm 6 passos)
 
   // calendário
   var selectedDate = null;
@@ -698,7 +692,6 @@
       base_local: answers.base_local || '',
       grupo_vip: answers.grupo_vip || '',
       base_pacientes: answers.base_pacientes || '',
-      comercial: answers.comercial || '',
       orcamento: answers.orcamento || '',
       qualificado: disqReasons().length ? 'nao' : 'sim',
       motivo_desqualificacao: disqReasons().join(' | '),
