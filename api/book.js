@@ -97,6 +97,36 @@ module.exports = async function (req, res) {
     } catch (e) { /* silencioso */ }
   }
 
+  // 6) Rota do grupo VIP (variante E, /vip): eventos próprios do nicho, no mesmo
+  //    padrão das rotas de carros. Dedup com o Pixel via 'agv_' / 'purv_' + event_id.
+  if (body.variante === 'E') {
+    var baseIdV = body.event_id || (date + '_' + time);
+    var udV = meta.buildUserData(body, req);
+    var customV = { content_name: 'Agendamento grupo VIP (clínicas)', variante: body.variante, data: date, horario: time };
+    try {
+      await meta.sendEvent({
+        event_name: 'AgendamentoVip',
+        event_time: meta.nowTs(),
+        event_id: 'agv_' + baseIdV,
+        action_source: 'website',
+        event_source_url: body.event_source_url || '',
+        user_data: udV,
+        custom_data: customV
+      });
+    } catch (e) { /* silencioso */ }
+    try {
+      await meta.sendEvent({
+        event_name: 'PurchaseVip',
+        event_time: meta.nowTs(),
+        event_id: 'purv_' + baseIdV,
+        action_source: 'website',
+        event_source_url: body.event_source_url || '',
+        user_data: udV,
+        custom_data: Object.assign({ currency: 'BRL', value: Number(process.env.META_BOOKING_VALUE || 1) }, customV)
+      });
+    } catch (e) { /* silencioso */ }
+  }
+
   res.status(200).json({ ok: true, meta_received: metaResult && metaResult.body && metaResult.body.events_received });
 };
 

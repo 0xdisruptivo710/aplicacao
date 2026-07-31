@@ -1,15 +1,18 @@
 /* =========================================================================
    Aios CRM — Formulário de aplicação (estilo Chronos)
-   Variantes A/B (clínicas de estética) e C (lojas de carros),
-   ramificações, desqualificação silenciosa e calendário nativo.
+   Variantes A/B (clínicas de estética), C/D (lojas de carros) e
+   E (donas de clínica / grupo VIP), ramificações, desqualificação
+   silenciosa e calendário nativo.
    ========================================================================= */
 (function () {
   'use strict';
 
   // A e B = clínicas de estética. C e D = lojas de carros (mesmo fluxo e tema,
-  // capas diferentes p/ teste de copy).
-  var VARIANT = /^[BCD]$/.test(window.AIOS_VARIANT || '') ? window.AIOS_VARIANT : 'A';
+  // capas diferentes p/ teste de copy). E = donas de clínica que querem montar
+  // um grupo VIP (estratégia + captação + CRM + comercial opcional).
+  var VARIANT = /^[BCDE]$/.test(window.AIOS_VARIANT || '') ? window.AIOS_VARIANT : 'A';
   function isCarros() { return VARIANT === 'C' || VARIANT === 'D'; }
+  function isVip() { return VARIANT === 'E'; }
 
   // >>> TROQUE pelo link real do grupo (WhatsApp) <<<
   var GROUP_URL = 'https://chat.whatsapp.com/LmIxlpVEKia2LTLseJeF95';
@@ -27,6 +30,7 @@
   // D: recuperar lead perdido + organizar no CRM).
   var FILTER = '→ Exclusivo para clínicas que faturam R$30k+/mês e querem parar de perder paciente e começar a escalar.';
   var FILTER_CARROS = '→ Exclusivo para lojas com estoque próprio e time de vendas que cansaram de perder cliente no WhatsApp.';
+  var FILTER_VIP = '→ Exclusivo para clínicas que faturam R$30k+/mês e querem transformar a base de pacientes em vendas recorrentes.';
   var COVERS = {
     A: {
       h1: '<span class="emoji">📲</span> Dono de clínica de estética: <b>recupere os pacientes parados</b> no seu WhatsApp',
@@ -67,6 +71,16 @@
         ['🏆', '+50 negócios · +200k leads gerenciados']
       ],
       filter: FILTER_CARROS
+    },
+    E: {
+      h1: '<span class="emoji">👑</span> Dona de clínica: <b>um grupo VIP que lota sua agenda</b>',
+      bullets: [
+        ['👑', 'Grupo VIP vendendo toda semana'],
+        ['🎯', 'Estratégia e captação por nós'],
+        ['📲', 'Pacientes organizados no CRM'],
+        ['🏆', '+500 negócios · 2M+ leads atendidos']
+      ],
+      filter: FILTER_VIP
     }
   };
 
@@ -155,7 +169,7 @@
     faturamento: { type: 'choice',
       q: 'Qual o faturamento da sua empresa?',
       options: ['Mais de R$100k por mês', 'De R$50k a R$100k por mês', 'De R$30k a R$50k por mês', 'Até R$30k por mês'],
-      next: function () { return firstInvest(); } },
+      next: function () { return isVip() ? 'grupo_vip' : firstInvest(); } },
 
     /* ---- Variante A: investimento ---- */
     investe: { type: 'choice',
@@ -173,6 +187,21 @@
       options: ['Sim, já trabalhei com isso', 'Não, nunca usei'],
       next: function () { return 'base_local'; } },
 
+    /* ---- Variante E: grupo VIP (donas de clínica) ---- */
+    grupo_vip: { type: 'choice',
+      q: 'Sua clínica já tem um grupo VIP no WhatsApp?',
+      options: ['Sim, ativo e vendendo', 'Sim, mas está parado', 'Ainda não tenho'],
+      next: function () { return 'base_pacientes'; } },
+    base_pacientes: { type: 'choice',
+      q: 'Quantos contatos de pacientes você tem hoje?',
+      help: 'Some WhatsApp, planilha, sistema ou agenda — é essa base que vira o seu grupo VIP.',
+      options: ['Mais de 3.000 contatos', 'De 1.000 a 3.000 contatos', 'De 300 a 1.000 contatos', 'Menos de 300 contatos'],
+      next: function () { return 'comercial'; } },
+    comercial: { type: 'choice',
+      q: 'Além da estratégia e captação, quer que nosso time cuide também das vendas no grupo?',
+      options: ['Sim, quero o comercial completo', 'Não, minha equipe fecha as vendas', 'Quero entender as duas opções'],
+      next: function () { return 'orcamento'; } },
+
     /* ---- Base de clientes ---- */
     base_local: { type: 'choice',
       q: 'Você tem algum lugar onde os contatos dos seus clientes ficam guardados?',
@@ -182,7 +211,9 @@
 
     /* ---- Orçamento ---- */
     orcamento: { type: 'choice',
-      q: 'Recomendamos um investimento de no mínimo R$1.000 para montar seu funil de WhatsApp via WhatsApp Business API. Esse valor se alinha ao seu orçamento atual?',
+      q: isVip()
+        ? 'Para colocar seu grupo VIP para rodar (estratégia + captação + CRM), recomendamos um investimento de no mínimo R$1.000. Esse valor se alinha ao seu orçamento atual?'
+        : 'Recomendamos um investimento de no mínimo R$1.000 para montar seu funil de WhatsApp via WhatsApp Business API. Esse valor se alinha ao seu orçamento atual?',
       help: 'Esse é o investimento em mídia/estrutura — não inclui a nossa mão de obra.',
       options: ['Sim, faz sentido pra mim', 'Não se alinha agora'],
       next: function () { return 'SCHEDULE'; } }
@@ -191,15 +222,17 @@
   var DISQ_REASON = {
     faturamento: 'Faturamento até R$30k/mês',
     base: 'Sem local onde guarda os contatos',
+    base_pequena: 'Base com menos de 300 contatos',
     orcamento: 'Orçamento abaixo de R$1.000'
   };
 
   // Ninguém é barrado no formulário: todo mundo chega no agendamento.
   // Estas regras só marcam o lead pro n8n (qualificado / motivo_desqualificacao).
   var DISQ_RULES = [
-    { reason: 'faturamento', hit: function (a) { return a.faturamento === 'Até R$30k por mês'; } },
-    { reason: 'base',        hit: function (a) { return (a.base_local || '').indexOf('Não') === 0; } },
-    { reason: 'orcamento',   hit: function (a) { return (a.orcamento || '').indexOf('Não') === 0; } }
+    { reason: 'faturamento',  hit: function (a) { return a.faturamento === 'Até R$30k por mês'; } },
+    { reason: 'base',         hit: function (a) { return (a.base_local || '').indexOf('Não') === 0; } },
+    { reason: 'base_pequena', hit: function (a) { return a.base_pacientes === 'Menos de 300 contatos'; } },
+    { reason: 'orcamento',    hit: function (a) { return (a.orcamento || '').indexOf('Não') === 0; } }
   ];
   function disqReasons() {
     return DISQ_RULES.filter(function (r) { return r.hit(answers); })
@@ -210,7 +243,7 @@
   var answers = {};
   var history = [];        // pilha de ids visitados (p/ voltar)
   var current = null;
-  var ESTIMATED = isCarros() ? 6 : 7;  // p/ estimar a barra de progresso (carros não pergunta faturamento)
+  var ESTIMATED = isCarros() ? 6 : (isVip() ? 8 : 7);  // p/ estimar a barra de progresso (carros não pergunta faturamento; VIP tem 8 passos)
 
   // calendário
   var selectedDate = null;
@@ -249,7 +282,7 @@
           '<ul class="bullets">' + coverBullets + '</ul>' +
           '<p class="filter">' + cover.filter + '</p>' +
           '<div class="spacer"></div>' +
-          '<button class="cta cta-cover" id="startBtn">Quero agendar minha demo <span class="chk">→</span></button>' +
+          '<button class="cta cta-cover" id="startBtn">' + (isVip() ? 'Quero meu grupo VIP' : 'Quero agendar minha demo') + ' <span class="chk">→</span></button>' +
           '<p class="micro">Resposta em até 24h · Sem compromisso</p>' +
         '</section>' +
         // Fluxo de perguntas
@@ -457,12 +490,17 @@
       pixel('Lead', { content_name: 'lead_qualificado', variante: VARIANT }, id);
       post('/api/event', Object.assign({ event_name: 'Lead', event_id: id, custom_data: { variante: VARIANT } }, leadData()));
 
-      // As rotas de carros disparam também um evento próprio, pra separar o dado
+      // As rotas de nicho disparam também um evento próprio, pra separar o dado
       // do nicho sem tirar o lead da visão global (o padrão acima continua valendo).
       if (isCarros()) {
         var idc = 'lc_' + id;
         pixel('LeadCarros', { content_name: 'lead_qualificado_carros', variante: VARIANT }, idc, true);
         post('/api/event', Object.assign({ event_name: 'LeadCarros', event_id: idc, custom_data: { variante: VARIANT } }, leadData()));
+      }
+      if (isVip()) {
+        var idv = 'lv_' + id;
+        pixel('LeadVip', { content_name: 'lead_qualificado_vip', variante: VARIANT }, idv, true);
+        post('/api/event', Object.assign({ event_name: 'LeadVip', event_id: idv, custom_data: { variante: VARIANT } }, leadData()));
       }
     }
   }
@@ -607,6 +645,11 @@
             pixel('AgendamentoCarros', { content_name: 'agendamento_demo_carros', variante: VARIANT }, 'agc_' + schedId, true);
             pixel('PurchaseCarros', { value: 1, currency: 'BRL', content_name: 'agendamento_demo_carros', variante: VARIANT }, 'purc_' + schedId, true);
           }
+          // Eventos exclusivos do funil de grupo VIP — a CAPI dispara os pares no /api/book
+          if (isVip()) {
+            pixel('AgendamentoVip', { content_name: 'agendamento_grupo_vip', variante: VARIANT }, 'agv_' + schedId, true);
+            pixel('PurchaseVip', { value: 1, currency: 'BRL', content_name: 'agendamento_grupo_vip', variante: VARIANT }, 'purv_' + schedId, true);
+          }
           setProgress(1);
           var msg = document.getElementById('successMsg');
           msg.textContent = 'Sua reunião está reservada para ' + prettyDate(selectedDate) + ' às ' + selectedTime +
@@ -653,10 +696,13 @@
       investe_quanto: answers.investe_quanto || '',
       experiencia: answers.experiencia || '',
       base_local: answers.base_local || '',
+      grupo_vip: answers.grupo_vip || '',
+      base_pacientes: answers.base_pacientes || '',
+      comercial: answers.comercial || '',
       orcamento: answers.orcamento || '',
       qualificado: disqReasons().length ? 'nao' : 'sim',
       motivo_desqualificacao: disqReasons().join(' | '),
-      nicho: isCarros() ? 'carros' : 'estetica'
+      nicho: isCarros() ? 'carros' : (isVip() ? 'clinicas_vip' : 'estetica')
     }, context(), metaBase());
   }
 
