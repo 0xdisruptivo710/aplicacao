@@ -716,6 +716,15 @@
     build();
     loadPixel();                                   // PageView automático
     pixel('ViewContent', { content_name: 'capa_' + VARIANT, variante: VARIANT });
+
+    // Gatilho de teste (uso pontual): /vip?teste_pixel=1 dispara Schedule +
+    // Purchase de teste no pixel da Vero, p/ (re)ativar as conversões
+    // personalizadas no Gerenciador sem precisar concluir um agendamento real.
+    if (isVip() && new URLSearchParams(window.location.search).get('teste_pixel') === '1') {
+      var tid = 'teste_' + nowMs();
+      pixel('Schedule', { content_name: 'teste_liberacao_gerenciador', variante: VARIANT }, 'sch_' + tid);
+      pixel('Purchase', { value: 1, currency: 'BRL', content_name: 'teste_liberacao_gerenciador', variante: VARIANT }, 'pur_' + tid);
+    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
