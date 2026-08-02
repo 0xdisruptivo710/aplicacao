@@ -15,8 +15,9 @@ module.exports = async function (req, res) {
     });
   } catch (e) { /* não bloqueia a UI do visitante */ }
 
-  // Evento custom "Desqualificado" na Meta (pra visualizar o funil; não otimizar)
-  try {
+  // Evento custom "Desqualificado" na Meta (pra visualizar o funil; não otimizar).
+  // Funil VIP (variante E) roda no pixel da Vero, client-side — sem CAPI aqui.
+  if (body.variante !== 'E') try {
     await meta.sendEvent({
       event_name: 'Desqualificado',
       event_time: meta.nowTs(),

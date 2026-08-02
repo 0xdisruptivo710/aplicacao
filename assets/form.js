@@ -85,7 +85,13 @@
   };
 
   // ---------------------------------------------------------------- Meta Pixel + CAPI (cliente)
-  var META_PIXEL_ID = '2039202806998855';
+  // A rota /vip (variante E) roda na conta de anúncios da VERO, não do Aios:
+  // pixel próprio ("Protocolo Fecha-tudo", BM Vero Midia) e rastreio 100%
+  // client-side, sem CAPI — as conversões personalizadas da CA1 da Vero já
+  // existem sobre os eventos padrão Lead/Schedule/Purchase (ver
+  // RASTREAMENTO_META.md no projeto "Formulario Vero").
+  var META_PIXEL_ID = '2039202806998855';  // Pixel [aioscrm.com] — variantes A-D
+  var VERO_PIXEL_ID = '1624871735228400';  // Protocolo Fecha-tudo — variante E (/vip)
   var sent = {}; // evita disparar o mesmo evento 2x na sessão
 
   function loadPixel() {
@@ -95,7 +101,7 @@
       if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0'; n.queue = [];
       t = b.createElement(e); t.async = !0; t.src = v; s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
     }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
-    window.fbq('init', META_PIXEL_ID);
+    window.fbq('init', isVip() ? VERO_PIXEL_ID : META_PIXEL_ID);
     window.fbq('track', 'PageView');
   }
 
@@ -333,7 +339,16 @@
     document.getElementById('groupBtn').addEventListener('click', function () { window.location.href = GROUP_URL; });
     document.getElementById('fitWa').addEventListener('click', function () {
       this.href = fitWhatsAppHref(); // atualiza msg pré-pronta antes de abrir o WhatsApp
-      pixel('EncaixeWhatsApp', { variante: VARIANT }, null, true);
+      if (isVip()) {
+        // Estrutura da Vero: o encaixe conta como agendamento feito —
+        // Contact + Schedule + Purchase (espelho R$1 p/ campanhas de Vendas).
+        var eid = genId();
+        pixel('Contact', { content_name: 'encaixe_whatsapp', variante: VARIANT }, 'ct_' + eid);
+        pixel('Schedule', { content_name: 'encaixe_whatsapp', variante: VARIANT }, eid);
+        pixel('Purchase', { value: 1, currency: 'BRL', content_name: 'encaixe_whatsapp', variante: VARIANT }, 'pur_' + eid);
+      } else {
+        pixel('EncaixeWhatsApp', { variante: VARIANT }, null, true);
+      }
     });
   }
 
@@ -482,19 +497,15 @@
       sent.lead = true;
       var id = genId();
       pixel('Lead', { content_name: 'lead_qualificado', variante: VARIANT }, id);
-      post('/api/event', Object.assign({ event_name: 'Lead', event_id: id, custom_data: { variante: VARIANT } }, leadData()));
+      // CAPI só nos funis do pixel Aios — o funil VIP (pixel Vero) é client-side.
+      if (!isVip()) post('/api/event', Object.assign({ event_name: 'Lead', event_id: id, custom_data: { variante: VARIANT } }, leadData()));
 
-      // As rotas de nicho disparam também um evento próprio, pra separar o dado
+      // As rotas de carros disparam também um evento próprio, pra separar o dado
       // do nicho sem tirar o lead da visão global (o padrão acima continua valendo).
       if (isCarros()) {
         var idc = 'lc_' + id;
         pixel('LeadCarros', { content_name: 'lead_qualificado_carros', variante: VARIANT }, idc, true);
         post('/api/event', Object.assign({ event_name: 'LeadCarros', event_id: idc, custom_data: { variante: VARIANT } }, leadData()));
-      }
-      if (isVip()) {
-        var idv = 'lv_' + id;
-        pixel('LeadVip', { content_name: 'lead_qualificado_vip', variante: VARIANT }, idv, true);
-        post('/api/event', Object.assign({ event_name: 'LeadVip', event_id: idv, custom_data: { variante: VARIANT } }, leadData()));
       }
     }
   }
@@ -638,11 +649,6 @@
           if (isCarros()) {
             pixel('AgendamentoCarros', { content_name: 'agendamento_demo_carros', variante: VARIANT }, 'agc_' + schedId, true);
             pixel('PurchaseCarros', { value: 1, currency: 'BRL', content_name: 'agendamento_demo_carros', variante: VARIANT }, 'purc_' + schedId, true);
-          }
-          // Eventos exclusivos do funil de grupo VIP — a CAPI dispara os pares no /api/book
-          if (isVip()) {
-            pixel('AgendamentoVip', { content_name: 'agendamento_grupo_vip', variante: VARIANT }, 'agv_' + schedId, true);
-            pixel('PurchaseVip', { value: 1, currency: 'BRL', content_name: 'agendamento_grupo_vip', variante: VARIANT }, 'purv_' + schedId, true);
           }
           setProgress(1);
           var msg = document.getElementById('successMsg');

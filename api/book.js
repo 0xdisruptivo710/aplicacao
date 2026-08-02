@@ -38,9 +38,13 @@ module.exports = async function (req, res) {
     });
   } catch (e) { /* lead reservado; entrega ao n8n pode ser reconciliada */ }
 
+  // O funil VIP (variante E, /vip) roda no pixel da VERO, 100% client-side:
+  // nenhum evento CAPI aqui (o token do servidor é do dataset Aios).
+  var capiOn = body.variante !== 'E';
+
   // 3) Evento Schedule na Meta (CAPI) — dedup pelo mesmo event_id do Pixel
   var metaResult = null;
-  try {
+  if (capiOn) try {
     metaResult = await meta.sendEvent({
       event_name: 'Schedule',
       event_time: meta.nowTs(),
@@ -54,7 +58,7 @@ module.exports = async function (req, res) {
 
   // 4) Evento Purchase na Meta — espelha o agendamento na família "Compra"
   //    para poder otimizar em campanhas de VENDAS (dedup pelo Pixel via 'pur_' + event_id).
-  try {
+  if (capiOn) try {
     await meta.sendEvent({
       event_name: 'Purchase',
       event_time: meta.nowTs(),
@@ -93,36 +97,6 @@ module.exports = async function (req, res) {
         event_source_url: body.event_source_url || '',
         user_data: udC,
         custom_data: Object.assign({ currency: 'BRL', value: Number(process.env.META_BOOKING_VALUE || 1) }, customC)
-      });
-    } catch (e) { /* silencioso */ }
-  }
-
-  // 6) Rota do grupo VIP (variante E, /vip): eventos próprios do nicho, no mesmo
-  //    padrão das rotas de carros. Dedup com o Pixel via 'agv_' / 'purv_' + event_id.
-  if (body.variante === 'E') {
-    var baseIdV = body.event_id || (date + '_' + time);
-    var udV = meta.buildUserData(body, req);
-    var customV = { content_name: 'Agendamento grupo VIP (clínicas)', variante: body.variante, data: date, horario: time };
-    try {
-      await meta.sendEvent({
-        event_name: 'AgendamentoVip',
-        event_time: meta.nowTs(),
-        event_id: 'agv_' + baseIdV,
-        action_source: 'website',
-        event_source_url: body.event_source_url || '',
-        user_data: udV,
-        custom_data: customV
-      });
-    } catch (e) { /* silencioso */ }
-    try {
-      await meta.sendEvent({
-        event_name: 'PurchaseVip',
-        event_time: meta.nowTs(),
-        event_id: 'purv_' + baseIdV,
-        action_source: 'website',
-        event_source_url: body.event_source_url || '',
-        user_data: udV,
-        custom_data: Object.assign({ currency: 'BRL', value: Number(process.env.META_BOOKING_VALUE || 1) }, customV)
       });
     } catch (e) { /* silencioso */ }
   }
