@@ -18,7 +18,7 @@
   var GROUP_URL = 'https://chat.whatsapp.com/LmIxlpVEKia2LTLseJeF95';
 
   // Número direto p/ "Tentar encaixe via WhatsApp" quando a agenda está cheia.
-  var FIT_WHATSAPP_URL = 'https://wa.me/5515991286797';
+  var FIT_WHATSAPP_URL = 'https://wa.me/5515936183154';
 
   // Escassez da agenda: libera só estes nºs de dias/horários; o resto fica "Ocupado".
   // Dias liberados = hoje + o próximo dia útil. 2 dias × 2 horários = 4 vagas no total.
